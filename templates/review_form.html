@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>听评系统</title>
+    <style>
+        body { font-family: Arial, sans-serif; }
+        #columnInfo { margin: 20px 0; padding: 15px; border: 1px solid #ccc; }
+        /* 新增：文本框样式 */
+        textarea {
+            width: 100%;
+            min-height: 50px;
+            padding: 8px;
+            box-sizing: border-box;
+            resize: vertical;  /* 允许用户手动调整高度 */
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>听评系统</h1>
+    <form id="reviewForm">
+        <label>栏目选择：
+            <select id="columnSelect" required>
+                <option value="">请选择栏目</option>
+            </select>
+        </label>
+        
+        <div id="columnInfo">
+            <p>节目名称： <span id="programName"></span></p>
+            <p>编辑： <span id="editor"></span></p>
+            <p>责编： <span id="responsibleEditor"></span></p>
+            <p>播音： <span id="broadcasters"></span></p>
+            <p>导播： <span id="director"></span></p>
+        </div>
+        
+        <!-- 修改为 textarea 并添加自动调整高度 -->
+        <label>姓名：<input type="text" id="name" required></label><br>
+        <label>稿件：<textarea id="script" required></textarea></label>
+        <label>播音：<textarea id="broadcast" required></textarea></label>
+        <label>垫乐：<textarea id="padding" required></textarea></label>
+        
+        <button type="submit">提交</button>
+        <button onclick="exportData()">导出数据</button>
+    </form>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            // 加载栏目列表
+            $.get('/api/columns', function(data) {
+                const select = $('#columnSelect');
+                data.forEach(column => {
+                    select.append(`<option value="${column.id}">${column.name}</option>`);
+                });
+            });
+
+            // 监听栏目选择变化（保持不变）
+            $('#columnSelect').change(function() {
+                const columnId = $(this).val();
+                if (columnId) {
+                    $.get(`/api/column/${columnId}`, function(data) {
+                        $('#programName').text(data.programName);
+                        $('#editor').text(data.editor);
+                        $('#responsibleEditor').text(data.responsibleEditor);
+                        $('#broadcasters').text(data.broadcasters.join(', '));
+                        $('#director').text(data.director);
+                    });
+                }
+            });
+
+            // 新增：自动调整 textarea 高度
+            function autoResizeTextarea(textarea) {
+                textarea.style.height = 'auto';
+                textarea.style.height = (textarea.scrollHeight) + 'px';
+            }
+
+            // 初始化所有 textarea 的自动调整
+            document.querySelectorAll('textarea').forEach(textarea => {
+                autoResizeTextarea(textarea);
+                textarea.addEventListener('input', function() {
+                    autoResizeTextarea(this);
+                });
+            });
+
+            // 提交表单
+            $('#reviewForm').submit(function(e) {
+                e.preventDefault();
+                const columnId = $('#columnSelect').val();
+                const name = $('#name').val();
+                const script = $('#script').val();
+                const broadcast = $('#broadcast').val();
+                const padding = $('#padding').val();
+                
+                if (!columnId) {
+                    alert('请选择有效栏目！');
+                    return;
+                }
+                if (!name || !script || !broadcast || !padding) {
+                    alert('所有字段均为必填项！');
+                    return;
+                }
+                
+                $.ajax({
+                    url: '/api/submit',
+                    type: 'POST',
+                    data: JSON.stringify({
+                        columnId, name, script, broadcast, padding
+                    }),
+                    contentType: 'application/json',
+                    success: function(response) {
+                        if (response.status === 'success') {
+                            alert('提交成功！');
+                            $('#name').val('');
+                            $('#script').val('');
+                            $('#broadcast').val('');
+                            $('#padding').val('');
+                        } else {
+                            alert('提交失败：' + response.message);
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        alert('网络错误，请重试。');
+                    }
+                });
+            });
+
+            // 导出数据按钮（保持不变）
+            function exportData() {
+                fetch('/api/export')
+                    .then(response => response.blob())
+                    .then(blob => {
+                        const url = window.URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = 'reviews_export.xlsx';
+                        document.body.appendChild(a);
+                        a.click();
+                        a.remove();
+                    })
+                    .catch(error => alert('导出失败：' + error));
+            }
+        });
+    </script>
+</body>
+</html>
