@@ -11,7 +11,7 @@ app = Flask(__name__)
 # 配置数据库路径
 project_dir = os.path.abspath(os.path.dirname(__file__))
 database_path = os.path.join(project_dir, 'data', 'reviews.db')
-app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{database_path.replace("\\", "/")}'
+app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{database_path}'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
